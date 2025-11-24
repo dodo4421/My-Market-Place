@@ -1,5 +1,6 @@
 'use client'
 
+import { formatEther } from 'viem'
 import { useState, useEffect } from 'react'
 import { useAccount, useBalance } from 'wagmi'
 import {
@@ -171,7 +172,7 @@ export function Profile() {
                 </p>
               ) : ethBalance ? (
                 <p className='text-xl font-bold text-blue-800 dark:text-blue-200'>
-                  {parseFloat(ethBalance.formatted).toFixed(4)} ETH
+                  {parseFloat(formatEther(ethBalance.value)).toFixed(4)} ETH
                 </p>
               ) : (
                 <p className='text-xl font-bold text-blue-800 dark:text-blue-200'>
