@@ -1,7 +1,6 @@
 'use client'
 
 import { ReactNode } from 'react'
-import { BGJBadge } from './ui/BGJBadge'
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -29,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <BGJBadge tone="success" className="shadow-sm border-emerald-100 bg-emerald-50 text-emerald-700">Sepolia Network</BGJBadge>
+            
           </div>
         </div>
       </div>
