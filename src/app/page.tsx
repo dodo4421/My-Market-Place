@@ -13,82 +13,89 @@ export default function Home() {
   >('marketplace')
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-gray-900'>
-      {/* 헤더 */}
-      <header className='bg-white dark:bg-gray-800 shadow-sm'>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4'>
-          <div className='flex justify-between items-center'>
-            <h1 className='text-2xl font-bold'>92015415 장재원의 NFT마켓</h1>
-            <WalletConnect />
-          </div>
+    <div className='min-h-screen text-slate-900 font-sans selection:bg-emerald-100'>
+      {/* Premium Header */}
+      <header className='sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-emerald-100'>
+        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+           <div className='h-20 flex items-center justify-between'>
+             {/* Title */}
+             <div className="flex items-center gap-2">
+               <h1 className='text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-900 to-teal-700 tracking-tight'>
+                 92015415 장재원의 NFT마켓
+               </h1>
+             </div>
+             
+             {/* Wallet */}
+             <WalletConnect />
+           </div>
+
+           {/* Navigation Tabs */}
+           <nav className='flex space-x-8 -mb-px'>
+            <TabButton 
+              label="마켓플레이스" 
+              isActive={activeTab === 'marketplace'} 
+              onClick={() => setActiveTab('marketplace')} 
+            />
+            <TabButton 
+              label="내 NFT" 
+              isActive={activeTab === 'mynft'} 
+              onClick={() => setActiveTab('mynft')} 
+            />
+            <TabButton 
+              label="내 프로필" 
+              isActive={activeTab === 'profile'} 
+              onClick={() => setActiveTab('profile')} 
+            />
+            <TabButton 
+              label="컨트랙트 정보" 
+              isActive={activeTab === 'contracts'} 
+              onClick={() => setActiveTab('contracts')} 
+            />
+           </nav>
         </div>
       </header>
 
-      {/* 탭 네비게이션 */}
-      <nav className='bg-white dark:bg-gray-800 border-b'>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-          <div className='flex space-x-8'>
-            <button
-              onClick={() => setActiveTab('marketplace')}
-              className={`py-4 px-1 border-b-2 font-bold text-base ${
-                activeTab === 'marketplace'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              마켓플레이스
-            </button>
-            <button
-              onClick={() => setActiveTab('mynft')}
-              className={`py-4 px-1 border-b-2 font-bold text-base ${
-                activeTab === 'mynft'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              내 NFT
-            </button>
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`py-4 px-1 border-b-2 font-bold text-base ${
-                activeTab === 'profile'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              내 프로필
-            </button>
-            <button
-              onClick={() => setActiveTab('contracts')}
-              className={`py-4 px-1 border-b-2 font-bold text-base ${
-                activeTab === 'contracts'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              컨트랙트 정보
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* 메인 컨텐츠 */}
-      <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-        {/* 탭별 컨텐츠 */}
+      {/* Main Content Space */}
+      <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 animate-fadeIn'>
         {activeTab === 'marketplace' && <Marketplace />}
         {activeTab === 'mynft' && <MyNFT />}
         {activeTab === 'profile' && <Profile />}
         {activeTab === 'contracts' && <ContractInfo />}
       </main>
 
-      {/* 푸터 */}
-      <footer className='bg-white dark:bg-gray-800 border-t mt-12'>
-        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'>
-          <p className='text-center text-gray-500 dark:text-gray-400 text-sm'>
-            Sepolia 테스트넷에서 운영 중
-          </p>
+      {/* Elegant Footer */}
+      <footer className='bg-emerald-50 border-t border-emerald-100 mt-20'>
+        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+             <div className="text-center md:text-left">
+               <p className='font-bold text-emerald-800'>My NFT Market</p>
+               <p className='text-sm text-emerald-600 mt-1'>
+                 Premium NFT Trading Platform on Sepolia
+               </p>
+             </div>
+             <p className='text-emerald-500 text-sm'>
+               © 2024 Jang Jaewon. All rights reserved.
+             </p>
+          </div>
         </div>
       </footer>
     </div>
+  )
+}
+
+function TabButton({ label, isActive, onClick }: { label: string, isActive: boolean, onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        py-4 px-1 border-b-[3px] font-bold text-sm transition-all duration-200
+        ${isActive 
+          ? 'border-emerald-500 text-emerald-600' 
+          : 'border-transparent text-slate-500 hover:text-emerald-700 hover:border-emerald-200'
+        }
+      `}
+    >
+      {label}
+    </button>
   )
 }

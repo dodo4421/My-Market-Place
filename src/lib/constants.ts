@@ -1,4 +1,4 @@
-export const tokenContractAddress = '0xB400133f8a6d23212c1C71662f000260E80d4280'
+export const tokenContractAddress = '0x9858Ecd67e55B5649ef6b4A7948e6A0C5351b8cf'
 export const SEPOLIA_CHAIN_ID = 11155111
 
 // Sepolia RPC 엔드포인트 (fallback 포함)
@@ -23,10 +23,10 @@ export const SEPOLIA_RPC_URLS = customRpcUrl
       'https://rpc2.sepolia.org',
     ]
 
-export const nftContractAddress = '0x16f47ef09364Bc16DC3a041754A7C0d3EeAEDEcC'
+export const nftContractAddress = '0x767C463B781fe7be52228e90D041B818e32bb8d4'
 
 export const marketplaceContractAddress =
-  '0xFADc89fe7De4d29D1222d4dA0F07a8E6B86808f5'
+  '0xbEa5a62bFB64a92D3B5C13067DD5de4cDcaB09Cf'
 
 export const SEPOLIA_NETWORK = {
   chainId: `0x${SEPOLIA_CHAIN_ID.toString(16)}`,

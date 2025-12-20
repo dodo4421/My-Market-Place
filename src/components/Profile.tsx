@@ -11,6 +11,7 @@ import {
   parseTokenAmount,
   transferToken,
   balanceOf,
+  requestTokenDrop,
 } from '@/lib/contracts'
 
 export function Profile() {
@@ -18,8 +19,6 @@ export function Profile() {
   const { address, isConnected } = useAccount()
   const {
     data: ethBalance,
-    isLoading: ethBalanceLoading,
-    error: ethBalanceError,
   } = useBalance({
     address: address || undefined,
   })
@@ -30,20 +29,19 @@ export function Profile() {
   const [nftBalance, setNftBalance] = useState<bigint>(BigInt(0))
   const [isLoading, setIsLoading] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
-  const [transferTo, setTransferTo] = useState('')
-  const [transferAmount, setTransferAmount] = useState('')
+  
   const [isTransferring, setIsTransferring] = useState(false)
   const [transferStatus, setTransferStatus] = useState<string>('')
 
-  // 클라이언트에서만 마운트되도록 처리
+  const [isRequesting, setIsRequesting] = useState(false)
+  const [requestMsg, setRequestMsg] = useState<string>('')
+
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // NFT 잔액 조회
   const fetchNFTBalance = async () => {
     if (!isConnected || !address) return
-
     try {
       const balance = await balanceOf(address)
       setNftBalance(balance)
@@ -52,31 +50,14 @@ export function Profile() {
     }
   }
 
-  // 토큰 정보 및 잔액 조회
   const fetchTokenInfo = async () => {
-    if (!isConnected || !address) {
-      console.log('토큰 정보 조회: 지갑이 연결되지 않음')
-      return
-    }
-
-    console.log('토큰 정보 조회 시작:', address)
-
+    if (!isConnected || !address) return
     try {
       const [decimals, symbol, balance] = await Promise.all([
         getTokenDecimals(),
         getTokenSymbol(),
-        getTokenBalance(address).catch((err) => {
-          console.error('토큰 잔액 조회 실패:', err)
-          return BigInt(0)
-        }),
+        getTokenBalance(address).catch(() => BigInt(0)),
       ])
-
-      console.log('토큰 정보 조회 완료:', {
-        decimals,
-        symbol,
-        balance: balance.toString(),
-      })
-
       setTokenDecimals(decimals)
       setTokenSymbol(symbol)
       setTokenBalance(balance)
@@ -92,139 +73,182 @@ export function Profile() {
     }
   }, [mounted, isConnected, address])
 
-  // 서버 사이드 렌더링 시 로딩 표시
+  const handleRequestTokens = async () => {
+    if (!isConnected || !address) return alert('지갑을 연결해주세요.')
+    setIsRequesting(true)
+    setRequestMsg('')
+    try {
+      setRequestMsg('토큰 신청 트랜잭션 진행 중...')
+      await requestTokenDrop()
+      setRequestMsg(`✅ 1000 ${tokenSymbol} 지급 완료!`)
+      await fetchTokenInfo()
+    } catch (error: any) {
+      const msg = error?.shortMessage || error?.message || ''
+      if (String(msg).includes('Already received')) {
+        setRequestMsg('⚠️ 이미 토큰을 받았습니다.')
+      } else {
+        setRequestMsg(`⚠️ 신청 실패: ${msg}`)
+      }
+    } finally {
+      setIsRequesting(false)
+    }
+  }
+
   if (!mounted) {
     return (
-      <div className='p-4 bg-gray-50 dark:bg-gray-800 rounded-lg'>
-        <p className='text-gray-600 dark:text-gray-400'>로딩 중...</p>
+      <div className='p-8 bg-white/50 backdrop-blur-md rounded-2xl flex items-center justify-center animate-pulse'>
+        <p className='text-emerald-500 font-medium'>로딩 중...</p>
       </div>
     )
   }
 
   if (!isConnected) {
     return (
-      <div className='p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg'>
-        <p className='text-yellow-800 dark:text-yellow-200'>
-          프로필을 보려면 먼저 지갑을 연결해주세요.
-        </p>
+      <div className='p-6 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3'>
+        <div className='p-2 bg-emerald-100 rounded-full text-emerald-600'>⚠️</div>
+        <p className='text-emerald-800 font-medium'>프로필을 보려면 먼저 지갑을 연결해주세요.</p>
       </div>
     )
   }
 
-  const getEtherscanUrl = (address: string) => {
-    return `https://sepolia.etherscan.io/address/${address}`
-  }
+  const getEtherscanUrl = (address: string) => `https://sepolia.etherscan.io/address/${address}`
 
   const copyToClipboard = (text: string) => {
     if (typeof window !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(text)
-      alert('주소가 클립보드에 복사되었습니다!')
+      alert('주소가 복사되었습니다!')
     }
   }
 
+  interface StatCardProps {
+    title: string
+    value: string
+    subValue?: string
+    icon: string
+    colorClass: string
+    action?: React.ReactNode
+  }
+
+  const StatCard = ({ title, value, subValue, icon, colorClass, action }: StatCardProps) => (
+    <div className='relative overflow-hidden bg-white/80 backdrop-blur-md p-6 rounded-3xl border border-emerald-50 shadow-lg group hover:-translate-y-1 transition-all duration-300'>
+      <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity ${colorClass}`}>
+        <span className="text-6xl">{icon}</span>
+      </div>
+      <div>
+        <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">{title}</p>
+        <div className="flex items-baseline gap-2">
+           <h3 className="text-3xl font-black text-slate-800">{value}</h3>
+           {subValue && <span className="text-sm font-semibold text-slate-400">{subValue}</span>}
+        </div>
+      </div>
+      {action && <div className="mt-6 border-t border-slate-100 pt-4">{action}</div>}
+    </div>
+  )
+
   return (
-    <div className='space-y-6'>
-      {/* 프로필 요약 */}
-      <div className='p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg'>
-        <h2 className='text-2xl font-bold mb-6'>내 프로필</h2>
-
-        <div className='space-y-4'>
-          {/* 지갑 주소 */}
-          <div>
-            <label className='block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2'>
-              지갑 주소
-            </label>
-            <div className='flex items-center gap-2'>
-              <code className='text-sm font-mono bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded flex-1'>
-                {address}
-              </code>
-              <button
-                onClick={() => copyToClipboard(address || '')}
-                className='px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600 text-sm'
-              >
-                복사
-              </button>
-              <a
-                href={getEtherscanUrl(address || '')}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm'
-              >
-                Etherscan ↗
-              </a>
-            </div>
-          </div>
-
-          {/* 잔액 정보 */}
-          <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-            {/* ETH 잔액 */}
-            <div className='p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
-              <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>
-                ETH 잔액
-              </p>
-              {ethBalanceLoading ? (
-                <p className='text-xl font-bold text-blue-800 dark:text-blue-200'>
-                  로딩 중...
-                </p>
-              ) : ethBalanceError ? (
-                <p className='text-xl font-bold text-red-800 dark:text-red-200'>
-                  조회 실패
-                </p>
-              ) : ethBalance ? (
-                <p className='text-xl font-bold text-blue-800 dark:text-blue-200'>
-                  {parseFloat(formatEther(ethBalance.value)).toFixed(4)} ETH
-                </p>
-              ) : (
-                <p className='text-xl font-bold text-blue-800 dark:text-blue-200'>
-                  0.0000 ETH
-                </p>
-              )}
-            </div>
-
-            {/* 토큰 잔액 */}
-            <div className='p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
-              <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>
-                {tokenSymbol} 토큰 잔액
-              </p>
-              <p className='text-xl font-bold text-green-800 dark:text-green-200'>
-                {formatTokenAmount(tokenBalance, tokenDecimals)} {tokenSymbol}
-              </p>
-              {tokenBalance > BigInt(0) && (
+    <div className='space-y-8 animate-fadeIn'>
+      {/* Profile Header */}
+      <div className='relative overflow-hidden bg-gradient-to-r from-emerald-900 to-teal-800 rounded-3xl p-8 shadow-2xl text-white'>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+           <div>
+             <h2 className='text-3xl font-bold mb-2'>내 지갑</h2>
+             <div className='flex items-center gap-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/10'>
+                <code className='font-mono text-sm text-emerald-100'>
+                  {address}
+                </code>
                 <button
-                  onClick={() => setShowTransferModal(true)}
-                  className='mt-2 w-full px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs'
+                  onClick={() => copyToClipboard(address || '')}
+                  className='p-1.5 hover:bg-white/20 rounded-lg transition-colors'
+                  title="복사"
                 >
-                  전송
+                  📋
                 </button>
-              )}
-            </div>
-
-            {/* NFT 잔액 */}
-            <div className='p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg'>
-              <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>
-                보유 NFT
-              </p>
-              <p className='text-xl font-bold text-purple-800 dark:text-purple-200'>
-                {nftBalance.toString()}개
-              </p>
-            </div>
-          </div>
-
-          {/* 새로고침 버튼 */}
-          <div className='mt-4'>
-            <button
+                <a
+                  href={getEtherscanUrl(address || '')}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='p-1.5 hover:bg-white/20 rounded-lg transition-colors'
+                  title="Etherscan"
+                >
+                  🔗
+                </a>
+             </div>
+           </div>
+           
+           <button
               onClick={() => {
                 fetchTokenInfo()
                 fetchNFTBalance()
               }}
               disabled={isLoading}
-              className='px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50'
+              className='px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-sm font-semibold transition-all backdrop-blur-sm'
             >
-              {isLoading ? '로딩 중...' : '새로고침'}
+              🔄 {isLoading ? '갱신 중...' : '새로고침'}
             </button>
-          </div>
         </div>
       </div>
+
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+         <StatCard
+           title="ETH Balance"
+           value={ethBalance ? parseFloat(formatEther(ethBalance.value)).toFixed(4) : "0.0000"}
+           subValue="ETH"
+           icon="Ξ"
+           colorClass="text-slate-900"
+         />
+
+         <StatCard
+           title={`${tokenSymbol} Balance`}
+           value={formatTokenAmount(tokenBalance, tokenDecimals)}
+           subValue={tokenSymbol}
+           icon="🪙"
+           colorClass="text-amber-500"
+           action={
+             <div className="flex gap-2">
+                {tokenBalance > BigInt(0) && (
+                  <button
+                    onClick={() => setShowTransferModal(true)}
+                    className='flex-1 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-sm font-bold transition-colors'
+                  >
+                    전송
+                  </button>
+                )}
+                <button
+                  onClick={handleRequestTokens}
+                  disabled={isRequesting}
+                  className='flex-1 px-3 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50'
+                >
+                  {isRequesting ? '신청 중...' : 'Faucet'}
+                </button>
+             </div>
+           }
+         />
+
+         <StatCard
+           title="My NFTs"
+           value={nftBalance.toString()}
+           subValue="Items"
+           icon="🎨"
+           colorClass="text-purple-500"
+           action={
+             <div className="text-xs text-slate-400 font-medium">
+               보유 중인 NFT 컬렉션 수량입니다.
+             </div>
+           }
+         />
+      </div>
+
+      {requestMsg && (
+        <div className={`p-4 rounded-xl shadow-sm text-sm font-bold text-center animate-fadeIn ${
+           requestMsg.includes('✅') 
+             ? 'bg-green-50 text-green-700 border border-green-100'
+             : 'bg-amber-50 text-amber-700 border border-amber-100'
+        }`}>
+          {requestMsg}
+        </div>
+      )}
 
       {/* 토큰 전송 모달 */}
       {showTransferModal && (
@@ -234,60 +258,29 @@ export function Profile() {
           tokenSymbol={tokenSymbol}
           onClose={() => {
             setShowTransferModal(false)
-            setTransferTo('')
-            setTransferAmount('')
             setTransferStatus('')
           }}
           onTransfer={async (to: string, amount: string) => {
-            if (!isConnected || !address) {
-              alert('지갑을 연결해주세요.')
-              return
-            }
-
+            if (!isConnected || !address) return alert('지갑을 연결해주세요.')
             setIsTransferring(true)
             setTransferStatus('')
-
             try {
-              // 주소 유효성 검사
-              if (!to.startsWith('0x') || to.length !== 42) {
-                throw new Error('올바른 지갑 주소를 입력해주세요.')
-              }
-
-              // 금액 검사
+              if (!to.startsWith('0x') || to.length !== 42) throw new Error('올바른 지갑 주소 형식이 아닙니다.')
               const amountInWei = parseTokenAmount(amount, tokenDecimals)
-              if (amountInWei > tokenBalance) {
-                throw new Error('잔액이 부족합니다.')
-              }
-
-              if (amountInWei <= BigInt(0)) {
-                throw new Error('0보다 큰 금액을 입력해주세요.')
-              }
+              if (amountInWei > tokenBalance) throw new Error('잔액이 부족합니다.')
+              if (amountInWei <= BigInt(0)) throw new Error('0보다 큰 금액을 입력해주세요.')
 
               setTransferStatus('토큰 전송 중...')
-              const receipt = await transferToken(
-                to as `0x${string}`,
-                amountInWei
-              )
+              const receipt = await transferToken(to as `0x${string}`, amountInWei)
 
-              setTransferStatus(
-                `전송 완료! 트랜잭션: ${receipt.transactionHash}`
-              )
-
-              // 잔액 새로고침
+              setTransferStatus(`전송 완료! 트랜잭션: ${receipt.transactionHash}`)
               await fetchTokenInfo()
-
-              // 3초 후 모달 닫기
               setTimeout(() => {
                 setShowTransferModal(false)
-                setTransferTo('')
-                setTransferAmount('')
                 setTransferStatus('')
               }, 3000)
             } catch (error: any) {
-              console.error('토큰 전송 오류:', error)
-              setTransferStatus(
-                `전송 실패: ${error.message || '알 수 없는 오류'}`
-              )
+              setTransferStatus(`전송 실패: ${error.message || '알 수 없는 오류'}`)
             } finally {
               setIsTransferring(false)
             }
@@ -300,7 +293,6 @@ export function Profile() {
   )
 }
 
-// 토큰 전송 모달 컴포넌트
 function TokenTransferModal({
   tokenBalance,
   tokenDecimals,
@@ -309,58 +301,41 @@ function TokenTransferModal({
   onTransfer,
   isTransferring,
   transferStatus,
-}: {
-  tokenBalance: bigint
-  tokenDecimals: number
-  tokenSymbol: string
-  onClose: () => void
-  onTransfer: (to: string, amount: string) => Promise<void>
-  isTransferring: boolean
-  transferStatus: string
-}) {
+}: any) {
   const [to, setTo] = useState('')
   const [amount, setAmount] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (to && amount) {
-      onTransfer(to, amount)
-    }
+    if (to && amount) onTransfer(to, amount)
   }
 
-  const handleMax = () => {
-    setAmount(formatTokenAmount(tokenBalance, tokenDecimals))
-  }
+  const handleMax = () => setAmount(formatTokenAmount(tokenBalance, tokenDecimals))
 
   return (
-    <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-      <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-md w-full mx-4'>
-        <div className='flex justify-between items-center mb-4'>
-          <h3 className='text-xl font-bold'>토큰 전송</h3>
-          <button
-            onClick={onClose}
-            className='text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          >
-            ✕
-          </button>
+    <div className='fixed inset-0 bg-emerald-950/20 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn'>
+      <div className='bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full mx-4'>
+        <div className='flex justify-between items-center mb-6'>
+          <h3 className='text-2xl font-bold text-slate-800'>토큰 전송</h3>
+          <button onClick={onClose} className='p-2 rounded-full hover:bg-slate-100'>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className='space-y-4'>
-          <div>
-            <label className='block text-sm font-medium mb-2'>받는 주소</label>
+        <form onSubmit={handleSubmit} className='space-y-6'>
+          <div className="group">
+            <label className='block text-sm font-bold text-slate-700 mb-2'>받는 주소</label>
             <input
               type='text'
               value={to}
               onChange={(e) => setTo(e.target.value)}
               placeholder='0x...'
-              className='w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 font-mono text-sm'
+              className='w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 font-mono text-sm outline-none transition-all'
               required
               disabled={isTransferring}
             />
           </div>
 
-          <div>
-            <label className='block text-sm font-medium mb-2'>
+          <div className="group">
+            <label className='block text-sm font-bold text-slate-700 mb-2'>
               전송할 금액 ({tokenSymbol})
             </label>
             <div className='flex gap-2'>
@@ -369,59 +344,36 @@ function TokenTransferModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder='0.0'
-                step='0.000000000000000001'
-                min='0'
-                max={formatTokenAmount(tokenBalance, tokenDecimals)}
-                className='flex-1 px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600'
+                className='flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition-all'
                 required
                 disabled={isTransferring}
               />
               <button
                 type='button'
                 onClick={handleMax}
-                className='px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm'
+                className='px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200'
                 disabled={isTransferring}
               >
                 최대
               </button>
             </div>
-            <p className='text-xs text-gray-500 mt-1'>
-              사용 가능: {formatTokenAmount(tokenBalance, tokenDecimals)}{' '}
-              {tokenSymbol}
-            </p>
           </div>
 
+          <button
+            type='submit'
+            disabled={isTransferring || !to || !amount}
+            className='w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:transform-none'
+          >
+            {isTransferring ? '전송 중...' : '전송하기'}
+          </button>
+          
           {transferStatus && (
-            <div
-              className={`p-3 rounded-lg ${
-                transferStatus.includes('완료')
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200'
-                  : transferStatus.includes('실패')
-                  ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
-                  : 'bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200'
-              }`}
-            >
-              <p className='text-sm'>{transferStatus}</p>
+            <div className={`p-4 rounded-xl text-sm font-semibold text-center whitespace-pre-wrap ${
+              transferStatus.includes('완료') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            }`}>
+              {transferStatus}
             </div>
           )}
-
-          <div className='flex gap-2'>
-            <button
-              type='button'
-              onClick={onClose}
-              className='flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600'
-              disabled={isTransferring}
-            >
-              취소
-            </button>
-            <button
-              type='submit'
-              disabled={isTransferring || !to || !amount}
-              className='flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed'
-            >
-              {isTransferring ? '전송 중...' : '전송'}
-            </button>
-          </div>
         </form>
       </div>
     </div>
